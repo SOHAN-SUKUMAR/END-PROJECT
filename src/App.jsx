@@ -33,6 +33,24 @@ const PAGE_TITLES = {
   '/accounts': 'Accounts',
 }
 const PROJECT_LANGUAGES = ['HTML', 'CSS', 'Java', 'JavaScript']
+const PROGRAMMING_LANGUAGES = [
+  'HTML',
+  'CSS',
+  'JavaScript',
+  'TypeScript',
+  'Python',
+  'Java',
+  'C',
+  'C++',
+  'C#',
+  'PHP',
+  'SQL',
+  'Go',
+  'Rust',
+  'Ruby',
+  'Swift',
+  'Kotlin',
+]
 const PROJECTS = [
   {
     className: 'project-card-one',
@@ -862,6 +880,7 @@ function ProfileSetupScreen({
       about: String(formData.get('about') || '').trim(),
       // USER PROJECT SHOWCASE: preserve projects when other profile details are edited.
       projects: Array.isArray(initialProfile?.projects) ? initialProfile.projects : [],
+      skills: Array.isArray(initialProfile?.skills) ? initialProfile.skills : [],
     }
 
     if (!profile.name || !profile.id || !profile.email || !profile.phone || !profile.about) {
@@ -1102,7 +1121,43 @@ function AboutPage({ profile }) {
   )
 }
 
-function SkillsPage() {
+function SkillsPage({ profile, onSaveSkills }) {
+  const savedSkills = Array.isArray(profile.skills)
+    ? profile.skills.filter((language) => PROGRAMMING_LANGUAGES.includes(language))
+    : []
+  const [selectedLanguages, setSelectedLanguages] = useState(savedSkills)
+  const [editingSkills, setEditingSkills] = useState(savedSkills.length === 0)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    const saveError = onSaveSkills(selectedLanguages)
+    setError(saveError)
+    setSaved(!saveError)
+    if (!saveError) setEditingSkills(false)
+  }
+
+  function toggleLanguage(language, checked) {
+    setSelectedLanguages((current) => checked
+      ? [...current, language]
+      : current.filter((item) => item !== language))
+    setSaved(false)
+    setError('')
+  }
+
+  function cancelEditing() {
+    setSelectedLanguages(savedSkills)
+    setEditingSkills(false)
+    setError('')
+    setSaved(false)
+  }
+
+  function editSkills() {
+    setEditingSkills(true)
+    setSaved(false)
+  }
+
   return (
     <Reveal className="section-reveal">
       <section className="section skills-section skills-page">
@@ -1111,14 +1166,56 @@ function SkillsPage() {
             <span className="section-index">THE TOOLKIT</span>
             <h1>Things I work with</h1>
           </div>
-          <p>Focused fundamentals.<br />Built for the real world.</p>
+          <p>{editingSkills ? <>Select the languages<br />you know.</> : <>Your selected<br />languages.</>}</p>
         </div>
-        <div className="skills-grid">
-          <article><span className="skill-number">01</span><div className="skill-mark">&lt;/&gt;</div><h2>HTML</h2><p>Semantic, accessible structure</p></article>
-          <article><span className="skill-number">02</span><div className="skill-mark">#</div><h2>CSS</h2><p>Expressive, responsive systems</p></article>
-          <article><span className="skill-number">03</span><div className="skill-mark">JS</div><h2>JavaScript</h2><p>Clear, thoughtful interactions</p></article>
-          <article><span className="skill-number">04</span><div className="skill-mark">↔</div><h2>Responsive</h2><p>Consistent across every screen</p></article>
-        </div>
+        {editingSkills ? (
+          <form className="skill-language-form" onSubmit={handleSubmit}>
+            <fieldset className="skill-language-picker">
+              <legend>Programming languages you know</legend>
+              <div className="skill-language-options">
+                {PROGRAMMING_LANGUAGES.map((language) => {
+                  const isSelected = selectedLanguages.includes(language)
+                  return (
+                    <label className={`skill-language-option ${isSelected ? 'is-selected' : ''}`} key={language}>
+                      <input
+                        checked={isSelected}
+                        onChange={(event) => toggleLanguage(language, event.target.checked)}
+                        type="checkbox"
+                      />
+                      <span>{language}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
+            <div className="skill-language-save">
+              <button className="project-save-button" type="submit">Save skills</button>
+              {savedSkills.length > 0 && (
+                <button className="project-cancel-button" onClick={cancelEditing} type="button">Cancel</button>
+              )}
+              {error && <p className="skill-save-feedback is-error" role="alert">{error}</p>}
+            </div>
+          </form>
+        ) : (
+          <div className="skill-saved-view">
+            <button className="project-save-button" onClick={editSkills} type="button">Change skills</button>
+            {saved && <p className="skill-save-feedback" role="status">Your skills have been saved to your profile.</p>}
+            {selectedLanguages.length > 0 ? (
+              <div className="skills-grid">
+                {selectedLanguages.map((language, index) => (
+                  <article key={language}>
+                    <span className="skill-number">{String(index + 1).padStart(2, '0')}</span>
+                    <div className="skill-mark">{language === 'JavaScript' ? 'JS' : language.slice(0, 2).toUpperCase()}</div>
+                    <h2>{language}</h2>
+                    <p>Selected skill</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="skill-selection-empty">No languages selected. Use “Change skills” to add some.</p>
+            )}
+          </div>
+        )}
       </section>
     </Reveal>
   )
@@ -1151,7 +1248,9 @@ function ProjectCards({ projects }) {
   )
 }
 
-function WorkPage() {
+function WorkPage({ profile, onSaveProjects }) {
+  const projectCount = profile.projects?.length || 0
+
   return (
     <Reveal className="section-reveal">
       <section className="section projects-section work-page">
@@ -1160,10 +1259,12 @@ function WorkPage() {
             <span className="section-index">SELECTED WORK</span>
             <h1>Made with curiosity.</h1>
           </div>
-          <span className="project-count">03 PROJECTS</span>
+          <span className="project-count">
+            {String(projectCount).padStart(2, '0')} {projectCount === 1 ? 'PROJECT' : 'PROJECTS'}
+          </span>
         </div>
-        <p className="page-intro">A collection of ideas explored through responsive interfaces, profile discovery, and account experiences.</p>
-        <ProjectCards projects={PROJECTS} />
+        <p className="page-intro">Projects you add to your profile will appear here.</p>
+        <ProjectShowcase profile={{ ...profile, isCurrentUser: true }} onSaveProjects={onSaveProjects} />
       </section>
     </Reveal>
   )
@@ -1573,6 +1674,10 @@ function Portfolio({
     return onSaveProfile({ ...(ownProfile || myDetails), projects })
   }
 
+  function saveOwnSkills(skills) {
+    return onSaveProfile({ ...(ownProfile || myDetails), skills })
+  }
+
   function submitDiscoverySearch(event) {
     event.preventDefault()
     if (searchResults.length > 0) {
@@ -1766,8 +1871,8 @@ function Portfolio({
       <div className="page-transition" key={currentPage}>
         {currentPage === '/' && <HomePage onNavigate={navigateTo} profile={profile} />}
         {currentPage === '/about' && <AboutPage profile={profile} />}
-        {currentPage === '/skills' && <SkillsPage />}
-        {currentPage === '/work' && <WorkPage />}
+        {currentPage === '/skills' && <SkillsPage onSaveSkills={saveOwnSkills} profile={profile} />}
+        {currentPage === '/work' && <WorkPage onSaveProjects={saveOwnProjects} profile={profile} />}
         {currentPage === '/contact' && <ContactPage profile={profile} />}
         {currentPage.startsWith('/users/') && publicProfile && (
           <PublicProfilePage
